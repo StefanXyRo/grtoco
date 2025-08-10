@@ -11,7 +11,6 @@ class Post {
   final String? textContent;
   final DateTime timestamp;
   final List<String> likes;
-  final List<String> comments;
   final List<String> shares;
   final bool isFlagged;
   final int reportCount;
@@ -25,7 +24,6 @@ class Post {
     this.textContent,
     required this.timestamp,
     this.likes = const [],
-    this.comments = const [],
     this.shares = const [],
     this.isFlagged = false,
     this.reportCount = 0,
@@ -44,7 +42,6 @@ class Post {
       textContent: json['textContent'] as String?,
       timestamp: (json['timestamp'] as Timestamp).toDate(),
       likes: List<String>.from(json['likes'] ?? []),
-      comments: List<String>.from(json['comments'] ?? []),
       shares: List<String>.from(json['shares'] ?? []),
       isFlagged: json['isFlagged'] as bool? ?? false,
       reportCount: json['reportCount'] as int? ?? 0,
@@ -61,7 +58,6 @@ class Post {
       'textContent': textContent,
       'timestamp': Timestamp.fromDate(timestamp),
       'likes': likes,
-      'comments': comments,
       'shares': shares,
       'isFlagged': isFlagged,
       'reportCount': reportCount,
