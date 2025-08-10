@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:grtoco/services/auth_service.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:grtoco/models/user.dart';
 
 class FollowRequestsScreen extends StatefulWidget {
@@ -15,7 +15,7 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = context.watch<User?>();
+    final currentUser = context.watch<fb_auth.User?>();
 
     return Scaffold(
       appBar: AppBar(
@@ -38,7 +38,7 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
 
           return ListView(
             children: snapshot.data!.docs.map((DocumentSnapshot document) {
-              return FutureBuilder<UserModel?>(
+              return FutureBuilder<User?>(
                 future: _authService.getUser(document.id),
                 builder: (context, userSnapshot) {
                   if (!userSnapshot.hasData) {
@@ -47,10 +47,10 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
                   final requester = userSnapshot.data!;
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundImage: requester.photoURL != null && requester.photoURL!.isNotEmpty
-                          ? NetworkImage(requester.photoURL!)
+                      backgroundImage: requester.profileImageUrl != null && requester.profileImageUrl!.isNotEmpty
+                          ? NetworkImage(requester.profileImageUrl!)
                           : null,
-                      child: requester.photoURL == null || requester.photoURL!.isEmpty
+                      child: requester.profileImageUrl == null || requester.profileImageUrl!.isEmpty
                           ? Icon(Icons.person)
                           : null,
                     ),
@@ -61,14 +61,14 @@ class _FollowRequestsScreenState extends State<FollowRequestsScreen> {
                         ElevatedButton(
                           child: Text('Accept'),
                           onPressed: () {
-                            _authService.acceptFollowRequest(currentUser.uid, requester.uid);
+                            _authService.acceptFollowRequest(currentUser.uid, requester.userId);
                           },
                         ),
                         SizedBox(width: 8),
                         TextButton(
                           child: Text('Decline'),
                           onPressed: () {
-                            _authService.declineFollowRequest(currentUser.uid, requester.uid);
+                            _authService.declineFollowRequest(currentUser.uid, requester.userId);
                           },
                         ),
                       ],

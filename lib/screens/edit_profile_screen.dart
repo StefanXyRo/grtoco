@@ -5,7 +5,7 @@ import 'package:grtoco/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  final UserModel user;
+  final User user;
 
   EditProfileScreen({required this.user});
 
@@ -44,7 +44,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
 
       await _authService.updateUserProfile(
-        uid: widget.user.uid,
+        uid: widget.user.userId,
         displayName: _displayName,
         bio: _bio,
         image: _image,
@@ -78,10 +78,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         radius: 50,
                         backgroundImage: _image != null
                             ? FileImage(File(_image!.path))
-                            : (widget.user.photoURL != null && widget.user.photoURL!.isNotEmpty
-                                ? NetworkImage(widget.user.photoURL!)
+                            : (widget.user.profileImageUrl != null && widget.user.profileImageUrl!.isNotEmpty
+                                ? NetworkImage(widget.user.profileImageUrl!)
                                 : null) as ImageProvider?,
-                        child: _image == null && (widget.user.photoURL == null || widget.user.photoURL!.isEmpty)
+                        child: _image == null && (widget.user.profileImageUrl == null || widget.user.profileImageUrl!.isEmpty)
                             ? Icon(Icons.camera_alt, size: 50)
                             : null,
                       ),

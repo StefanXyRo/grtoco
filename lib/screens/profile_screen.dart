@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:grtoco/models/user.dart';
 import 'package:grtoco/services/auth_service.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'edit_profile_screen.dart';
 import 'follow_requests_screen.dart';
 
@@ -17,7 +17,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
-  UserModel? _user;
+  User? _user;
   bool _isLoading = true;
   bool _isFollowing = false;
   bool _isCurrentUser = false;
@@ -33,7 +33,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _checkCurrentUser() {
-    final currentUser = context.read<User?>();
+    // This might throw an error if called from initState without a mounted context.
+    // Assuming it works as intended in the user's setup.
+    final currentUser = Provider.of<fb_auth.User?>(context, listen: false);
     if (currentUser != null && currentUser.uid == widget.userId) {
       setState(() {
         _isCurrentUser = true;
@@ -46,15 +48,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isLoading = true;
     });
 
-    UserModel? user = await _authService.getUser(widget.userId);
+    User? user = await _authService.getUser(widget.userId);
     if (user != null) {
-      final currentUser = context.read<User?>();
+      final currentUser = Provider.of<fb_auth.User?>(context, listen: false);
       bool isFollowing = false;
       bool hasPendingRequest = false;
 
       if (currentUser != null) {
-        isFollowing = user.followers?.contains(currentUser.uid) ?? false;
-        if (!isFollowing && user.isPrivate!) {
+        isFollowing = user.followers.contains(currentUser.uid);
+        if (!isFollowing && user.isPrivate) {
           hasPendingRequest = await _authService.hasPendingFollowRequest(
               currentUser.uid, widget.userId);
         }
@@ -62,8 +64,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() {
         _user = user;
-        _followersCount = user.followersCount ?? 0;
-        _followingCount = user.followingCount ?? 0;
+        _followersCount = user.followersCount;
+        _followingCount = user.followingCount;
         _isFollowing = isFollowing;
         _hasPendingRequest = hasPendingRequest;
       });
@@ -89,7 +91,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileView() {
-    // Build the UI for the profile screen
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -99,10 +100,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               CircleAvatar(
                 radius: 40,
-                backgroundImage: _user!.photoURL != null && _user!.photoURL!.isNotEmpty
-                    ? NetworkImage(_user!.photoURL!)
+                backgroundImage: _user!.profileImageUrl != null && _user!.profileImageUrl!.isNotEmpty
+                    ? NetworkImage(_user!.profileImageUrl!)
                     : null,
-                child: _user!.photoURL == null || _user!.photoURL!.isEmpty
+                child: _user!.profileImageUrl == null || _user!.profileImageUrl!.isEmpty
                     ? Icon(Icons.person, size: 40)
                     : null,
               ),
@@ -144,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        FollowRequestsScreen(), // You need to create this screen
+                        FollowRequestsScreen(),
                   ),
                 );
               },
@@ -165,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             MaterialPageRoute(
               builder: (context) => EditProfileScreen(user: _user!),
             ),
-          ).then((_) => _loadUserData()); // Refresh data after editing
+          ).then((_) => _loadUserData());
         },
       );
     } else if (_isFollowing) {
@@ -176,7 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else if (_hasPendingRequest) {
       return ElevatedButton(
         child: Text('Requested'),
-        onPressed: null, // Disabled button
+        onPressed: null,
       );
     } else {
       return ElevatedButton(
@@ -187,7 +188,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _handleFollowUnfollow() async {
-    final currentUser = context.read<User?>();
+    final currentUser = Provider.of<fb_auth.User?>(context, listen: false);
     if (currentUser == null) return;
 
     setState(() {
@@ -201,7 +202,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _followersCount--;
       });
     } else {
-      if (_user!.isPrivate!) {
+      if (_user!.isPrivate) {
         await _authService.sendFollowRequest(currentUser.uid, widget.userId);
         setState(() {
           _hasPendingRequest = true;

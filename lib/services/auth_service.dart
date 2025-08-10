@@ -1,24 +1,27 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final fb_auth.FirebaseAuth _auth = fb_auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Get current user
-  User? get currentUser => _auth.currentUser;
+  fb_auth.User? get currentUser => _auth.currentUser;
 
   // Get user data from Firestore
-  Future<UserModel?> getUser(String uid) async {
+  Future<User?> getUser(String uid) async {
     try {
       DocumentSnapshot doc =
           await _firestore.collection('users').doc(uid).get();
-      return UserModel.fromFirestore(doc);
+      if (doc.exists) {
+        return User.fromJson(doc.data() as Map<String, dynamic>);
+      }
+      return null;
     } catch (e) {
       print(e.toString());
       return null;
@@ -26,10 +29,10 @@ class AuthService {
   }
 
   // Sign up with email and password
-  Future<UserCredential?> signUpWithEmailAndPassword(
+  Future<fb_auth.UserCredential?> signUpWithEmailAndPassword(
       String email, String password, String displayName) async {
     try {
-      UserCredential userCredential =
+      fb_auth.UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -39,7 +42,7 @@ class AuthService {
       await _createUserDocument(userCredential.user, displayName);
 
       return userCredential;
-    } on FirebaseAuthException catch (e) {
+    } on fb_auth.FirebaseAuthException catch (e) {
       // Handle errors
       print(e.message);
       return null;
@@ -47,34 +50,36 @@ class AuthService {
   }
 
   // Create a user document in Firestore
-  Future<void> _createUserDocument(User? user, String displayName) async {
+  Future<void> _createUserDocument(fb_auth.User? user, String displayName) async {
     if (user == null) return;
 
-    UserModel newUser = UserModel(
-      uid: user.uid,
+    User newUser = User(
+      userId: user.uid,
       email: user.email,
       displayName: displayName,
-      photoURL: '',
+      profileImageUrl: '',
       bio: '',
       followersCount: 0,
       followingCount: 0,
       isPrivate: false,
       followers: [],
       following: [],
+      joinedGroupIds: [],
+      blockedUsers: [],
     );
 
-    await _firestore.collection('users').doc(user.uid).set(newUser.toMap());
+    await _firestore.collection('users').doc(user.uid).set(newUser.toJson());
   }
 
   // Sign in with email and password
-  Future<UserCredential?> signInWithEmailAndPassword(
+  Future<fb_auth.UserCredential?> signInWithEmailAndPassword(
       String email, String password) async {
     try {
       return await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-    } on FirebaseAuthException catch (e) {
+    } on fb_auth.FirebaseAuthException catch (e) {
       // Handle errors
       print(e.message);
       return null;
@@ -85,7 +90,7 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
+    } on fb_auth.FirebaseAuthException catch (e) {
       // Handle errors
       print(e.message);
     }
@@ -115,7 +120,7 @@ class AuthService {
       };
 
       if (photoURL.isNotEmpty) {
-        userData['photoURL'] = photoURL;
+        userData['profileImageUrl'] = photoURL;
       }
 
       await _firestore.collection('users').doc(uid).update(userData);
@@ -167,7 +172,7 @@ class AuthService {
 
       // Remove current user from the other user's followers list
       await _firestore.collection('users').doc(unfollowId).update({
-        'followers': FieldValue.arrayRemove([uid]),
+        'followers': FieldValue.arrayRemove([unfollowId]),
         'followersCount': FieldValue.increment(-1),
       });
     } catch (e) {
