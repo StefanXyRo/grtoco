@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:grtoco/services/auth_service.dart';
+import 'package:grtoco/screens/create_group_screen.dart';
 import 'package:grtoco/screens/login_screen.dart';
 import 'package:grtoco/screens/profile_screen.dart';
 import 'package:provider/provider.dart';
@@ -41,6 +42,16 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Center(
         child: Text('Welcome to Grtoco!'),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => CreateGroupScreen()),
+          );
+        },
+        child: Icon(Icons.add),
+        tooltip: 'Create Group',
       ),
     );
   }
