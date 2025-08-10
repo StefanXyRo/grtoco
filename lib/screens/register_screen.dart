@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:grtoco/services/auth_service.dart';
 import 'package:grtoco/screens/home_screen.dart'; // Placeholder for home screen
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -18,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Register')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.register)),
       body: Container(
         padding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 50.0),
         child: Form(
@@ -27,37 +28,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: <Widget>[
               SizedBox(height: 20.0),
               TextFormField(
-                decoration: InputDecoration(hintText: 'Display Name'),
-                validator: (val) => val!.isEmpty ? 'Enter a display name' : null,
+                decoration: InputDecoration(hintText: AppLocalizations.of(context)!.displayName),
+                validator: (val) => val!.isEmpty ? AppLocalizations.of(context)!.enterADisplayName : null,
                 onChanged: (val) {
                   setState(() => displayName = val);
                 },
               ),
               SizedBox(height: 20.0),
               TextFormField(
-                decoration: InputDecoration(hintText: 'Email'),
-                validator: (val) => val!.isEmpty ? 'Enter an email' : null,
+                decoration: InputDecoration(hintText: AppLocalizations.of(context)!.email),
+                validator: (val) => val!.isEmpty ? AppLocalizations.of(context)!.enterAnEmail : null,
                 onChanged: (val) {
                   setState(() => email = val);
                 },
               ),
               SizedBox(height: 20.0),
               TextFormField(
-                decoration: InputDecoration(hintText: 'Password'),
+                decoration: InputDecoration(hintText: AppLocalizations.of(context)!.password),
                 obscureText: true,
-                validator: (val) => val!.length < 6 ? 'Enter a password 6+ chars long' : null,
+                validator: (val) => val!.length < 6 ? AppLocalizations.of(context)!.enterAPassword : null,
                 onChanged: (val) {
                   setState(() => password = val);
                 },
               ),
               SizedBox(height: 20.0),
               ElevatedButton(
-                child: Text('Register'),
+                child: Text(AppLocalizations.of(context)!.register),
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     dynamic result = await _auth.signUpWithEmailAndPassword(email, password, displayName);
                     if (result == null) {
-                      setState(() => error = 'Please supply a valid email');
+                      setState(() => error = AppLocalizations.of(context)!.pleaseSupplyAValidEmail);
                     } else {
                        Navigator.pushReplacement(
                         context,

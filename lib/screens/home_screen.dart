@@ -22,6 +22,7 @@ import 'package:grtoco/widgets/qa_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -60,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
         child: Icon(Icons.add),
-        tooltip: 'Create Post',
+        tooltip: AppLocalizations.of(context)!.createPost,
       );
     } else if (_selectedIndex == 1) {
       return FloatingActionButton(
@@ -71,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
         child: Icon(Icons.video_call),
-        tooltip: 'Post Reel',
+        tooltip: AppLocalizations.of(context)!.postReel,
       );
     }
     return null;
@@ -84,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final List<PreferredSizeWidget?> appBars = [
       AppBar(
-        title: Text('Home'),
+        title: Text(AppLocalizations.of(context)!.home),
         actions: <Widget>[
           IconButton(
             icon: Icon(Icons.account_circle),
@@ -101,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton.icon(
             icon: Icon(Icons.person),
-            label: Text('Logout'),
+            label: Text(AppLocalizations.of(context)!.logout),
             onPressed: () async {
               await authService.signOut();
             },
@@ -109,12 +110,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       AppBar(
-        title: Text('Reels'),
+        title: Text(AppLocalizations.of(context)!.reels),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       AppBar(
-        title: Text('Conversations'),
+        title: Text(AppLocalizations.of(context)!.conversations),
       )
     ];
 
@@ -125,18 +126,18 @@ class _HomeScreenState extends State<HomeScreen> {
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
-            label: 'Home',
+            label: AppLocalizations.of(context)!.home,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.video_library),
-            label: 'Reels',
+            label: AppLocalizations.of(context)!.reels,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat),
-            label: 'Chat',
+            label: AppLocalizations.of(context)!.chat,
           ),
         ],
         currentIndex: _selectedIndex,
@@ -189,7 +190,7 @@ class _HomeFeedState extends State<HomeFeed> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = "Failed to load data: $e";
+          _error = "${AppLocalizations.of(context)!.failedToLoadData}$e";
           _isLoading = false;
         });
       }
@@ -210,7 +211,7 @@ class _HomeFeedState extends State<HomeFeed> {
                     _buildRecommendedGroupsSection(),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Text('Feed', style: Theme.of(context).textTheme.headline6),
+                      child: Text(AppLocalizations.of(context)!.feed, style: Theme.of(context).textTheme.headline6),
                     ),
                     Expanded(
                       child: _buildPostsFeed(),
@@ -230,7 +231,7 @@ class _HomeFeedState extends State<HomeFeed> {
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Text('Recommended Groups', style: Theme.of(context).textTheme.headline6),
+          child: Text(AppLocalizations.of(context)!.recommendedGroups, style: Theme.of(context).textTheme.headline6),
         ),
         Container(
           height: 120,
@@ -272,7 +273,7 @@ class _HomeFeedState extends State<HomeFeed> {
 
   Widget _buildPostsFeed() {
     if (_posts.isEmpty) {
-      return Center(child: Text('No posts in your groups yet.'));
+      return Center(child: Text(AppLocalizations.of(context)!.noPostsInYourGroupsYet));
     }
 
     return ListView.builder(
@@ -297,7 +298,7 @@ class _HomeFeedState extends State<HomeFeed> {
               if (!snapshot.hasData || snapshot.data == null) {
                 return Card(
                   child: ListTile(
-                    title: Text('Interactive post not found.'),
+                    title: Text(AppLocalizations.of(context)!.interactivePostNotFound),
                   ),
                 );
               }

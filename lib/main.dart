@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:grtoco/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:grtoco/screens/home_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 // IMPORTANT:
 // 1. Create a Firebase project at https://console.firebase.google.com/.
@@ -48,6 +50,25 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
+        localizationsDelegates: [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: [
+          Locale('en', ''),
+          Locale('ro', ''),
+          Locale('de', ''),
+          Locale('fr', ''),
+          Locale('es', ''),
+          Locale('it', ''),
+          Locale('zh', ''),
+          Locale('ko', ''),
+          Locale('ja', ''),
+          Locale('ar', ''),
+          Locale('hi', ''),
+        ],
         home: AuthWrapper(),
       ),
     );

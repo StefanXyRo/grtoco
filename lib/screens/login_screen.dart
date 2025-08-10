@@ -3,6 +3,7 @@ import 'package:grtoco/services/auth_service.dart';
 import 'package:grtoco/screens/register_screen.dart';
 import 'package:grtoco/screens/reset_password_screen.dart';
 import 'package:grtoco/screens/home_screen.dart'; // Placeholder for home screen
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -19,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Login')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.login)),
       body: Container(
         padding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 50.0),
         child: Form(
@@ -28,29 +29,29 @@ class _LoginScreenState extends State<LoginScreen> {
             children: <Widget>[
               SizedBox(height: 20.0),
               TextFormField(
-                decoration: InputDecoration(hintText: 'Email'),
-                validator: (val) => val!.isEmpty ? 'Enter an email' : null,
+                decoration: InputDecoration(hintText: AppLocalizations.of(context)!.email),
+                validator: (val) => val!.isEmpty ? AppLocalizations.of(context)!.enterAnEmail : null,
                 onChanged: (val) {
                   setState(() => email = val);
                 },
               ),
               SizedBox(height: 20.0),
               TextFormField(
-                decoration: InputDecoration(hintText: 'Password'),
+                decoration: InputDecoration(hintText: AppLocalizations.of(context)!.password),
                 obscureText: true,
-                validator: (val) => val!.length < 6 ? 'Enter a password 6+ chars long' : null,
+                validator: (val) => val!.length < 6 ? AppLocalizations.of(context)!.enterAPassword : null,
                 onChanged: (val) {
                   setState(() => password = val);
                 },
               ),
               SizedBox(height: 20.0),
               ElevatedButton(
-                child: Text('Sign In'),
+                child: Text(AppLocalizations.of(context)!.signIn),
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     dynamic result = await _auth.signInWithEmailAndPassword(email, password);
                     if (result == null) {
-                      setState(() => error = 'Could not sign in with those credentials');
+                      setState(() => error = AppLocalizations.of(context)!.signInFailed);
                     } else {
                        Navigator.pushReplacement(
                         context,
@@ -66,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(color: Colors.red, fontSize: 14.0),
               ),
               TextButton(
-                child: Text("Don't have an account? Register"),
+                child: Text(AppLocalizations.of(context)!.dontHaveAnAccount),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -75,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               TextButton(
-                child: Text("Forgot Password?"),
+                child: Text(AppLocalizations.of(context)!.forgotPassword),
                 onPressed: () {
                    Navigator.push(
                     context,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:grtoco/services/auth_service.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   @override
@@ -15,7 +16,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Reset Password')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.resetPassword)),
       body: Container(
         padding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 50.0),
         child: Form(
@@ -24,19 +25,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             children: <Widget>[
               SizedBox(height: 20.0),
               TextFormField(
-                decoration: InputDecoration(hintText: 'Email'),
-                validator: (val) => val!.isEmpty ? 'Enter an email' : null,
+                decoration: InputDecoration(hintText: AppLocalizations.of(context)!.email),
+                validator: (val) => val!.isEmpty ? AppLocalizations.of(context)!.enterAnEmail : null,
                 onChanged: (val) {
                   setState(() => email = val);
                 },
               ),
               SizedBox(height: 20.0),
               ElevatedButton(
-                child: Text('Send Reset Email'),
+                child: Text(AppLocalizations.of(context)!.sendResetEmail),
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     await _auth.sendPasswordResetEmail(email);
-                    setState(() => message = 'Password reset email sent');
+                    setState(() => message = AppLocalizations.of(context)!.passwordResetEmailSent);
                   }
                 },
               ),
