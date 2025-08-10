@@ -9,6 +9,7 @@ class Message {
   final bool isMedia;
   final String? mediaUrl;
   final String? isReplyTo; // messageId of the message being replied to
+  final List<String> mentions;
   final bool isFlagged;
   final int reportCount;
 
@@ -21,6 +22,7 @@ class Message {
     this.isMedia = false,
     this.mediaUrl,
     this.isReplyTo,
+    this.mentions = const [],
     this.isFlagged = false,
     this.reportCount = 0,
   });
@@ -35,6 +37,7 @@ class Message {
       isMedia: json['isMedia'] as bool? ?? false,
       mediaUrl: json['mediaUrl'] as String?,
       isReplyTo: json['isReplyTo'] as String?,
+      mentions: List<String>.from(json['mentions'] ?? []),
       isFlagged: json['isFlagged'] as bool? ?? false,
       reportCount: json['reportCount'] as int? ?? 0,
     );
@@ -50,6 +53,7 @@ class Message {
       'isMedia': isMedia,
       'mediaUrl': mediaUrl,
       'isReplyTo': isReplyTo,
+      'mentions': mentions,
       'isFlagged': isFlagged,
       'reportCount': reportCount,
     };

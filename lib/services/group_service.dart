@@ -1,11 +1,16 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:grtoco/models/group.dart';
+import 'package:grtoco/models/message.dart';
 import 'package:grtoco/models/post.dart';
 import 'package:grtoco/models/user.dart' as model_user;
 
 class GroupService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final CollectionReference _groupsCollection =
       FirebaseFirestore.instance.collection('groups');
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -314,6 +319,129 @@ class GroupService {
     } catch (e) {
       print("Error getting posts for user groups: $e");
       return [];
+    }
+  }
+
+  // Group Chat Methods
+
+  Future<String?> _uploadMedia(File file, String groupId) async {
+    try {
+      String fileName =
+          'group_chats/$groupId/media/${DateTime.now().millisecondsSinceEpoch}';
+      Reference ref = _storage.ref().child(fileName);
+      UploadTask uploadTask = ref.putFile(file);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading media: $e");
+      return null;
+    }
+  }
+
+  Future<void> sendMessage({
+    required String groupId,
+    String? textContent,
+    File? mediaFile,
+    String? replyToMessageId,
+  }) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+
+      String? mediaUrl;
+      if (mediaFile != null) {
+        mediaUrl = await _uploadMedia(mediaFile, groupId);
+      }
+
+      if (textContent == null && mediaUrl == null) {
+        // Don't send empty messages
+        return;
+      }
+
+      List<String> mentions = [];
+      if (textContent != null) {
+        // Simple mention parsing: @username
+        // A more robust solution would involve checking if the username exists
+        RegExp exp = RegExp(r"\B@\w+");
+        Iterable<RegExpMatch> matches = exp.allMatches(textContent);
+        for (final m in matches) {
+          // In a real app, you'd resolve this username to a userId
+          // For now, we'll just store the username
+          mentions.add(m[0]!);
+        }
+      }
+
+      CollectionReference messagesCollection =
+          _groupsCollection.doc(groupId).collection('messages');
+      String messageId = messagesCollection.doc().id;
+
+      Message newMessage = Message(
+        messageId: messageId,
+        conversationId: groupId,
+        senderId: currentUser.uid,
+        textContent: textContent,
+        timestamp: DateTime.now(),
+        isMedia: mediaFile != null,
+        mediaUrl: mediaUrl,
+        isReplyTo: replyToMessageId,
+        mentions: mentions,
+      );
+
+      await messagesCollection.doc(messageId).set(newMessage.toJson());
+
+      // Placeholder for sending notifications for mentions
+      if (mentions.isNotEmpty) {
+        // TODO: Implement notification sending logic
+        print("Sending notifications to: ${mentions.join(', ')}");
+      }
+    } catch (e) {
+      print("Error sending message: $e");
+      throw Exception("Failed to send message");
+    }
+  }
+
+  Stream<List<Message>> getMessages(String groupId) {
+    return _groupsCollection
+        .doc(groupId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Message.fromJson(doc.data());
+      }).toList();
+    });
+  }
+
+  Future<void> deleteMessage(String groupId, String messageId) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+
+      Group? group = await getGroup(groupId);
+      if (group == null) {
+        throw Exception("Group not found");
+      }
+
+      bool isOwner = group.ownerId == currentUser.uid;
+      bool isAdmin = group.adminIds.contains(currentUser.uid);
+
+      if (!isOwner && !isAdmin) {
+        throw Exception("User is not authorized to delete messages");
+      }
+
+      await _groupsCollection
+          .doc(groupId)
+          .collection('messages')
+          .doc(messageId)
+          .delete();
+    } catch (e) {
+      print("Error deleting message: $e");
+      throw Exception("Failed to delete message");
     }
   }
 }
