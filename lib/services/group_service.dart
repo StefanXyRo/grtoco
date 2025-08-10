@@ -444,4 +444,164 @@ class GroupService {
       throw Exception("Failed to delete message");
     }
   }
+
+  // Interactive Post Methods
+
+  Future<void> createInteractivePost({
+    required String groupId,
+    required String postType,
+    String? question,
+    List<String>? options,
+    String? eventName,
+    String? eventDescription,
+    String? eventLocation,
+    DateTime? eventDate,
+  }) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+
+      CollectionReference postsCollection =
+          _firestore.collection('interactive_posts');
+      String postId = postsCollection.doc().id;
+
+      Map<String, dynamic> postData = {
+        'postId': postId,
+        'groupId': groupId,
+        'authorId': currentUser.uid,
+        'postType': postType,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      if (postType == 'poll') {
+        postData.addAll({
+          'question': question,
+          'options': options,
+          'votes': {for (var option in options!) option: []},
+          'isClosed': false,
+        });
+      } else if (postType == 'event') {
+        postData.addAll({
+          'eventName': eventName,
+          'eventDescription': eventDescription,
+          'eventLocation': eventLocation,
+          'eventDate': eventDate,
+          'attendees': [],
+        });
+      } else if (postType == 'qa') {
+        postData.addAll({
+          'question': question,
+          'answers': [],
+        });
+      }
+
+      await postsCollection.doc(postId).set(postData);
+
+      // Also create a regular post to mark its existence in the main feed
+      await _firestore.collection('posts').doc(postId).set({
+        'postId': postId,
+        'groupId': groupId,
+        'authorId': currentUser.uid,
+        'postType': 'interactive',
+        'timestamp': FieldValue.serverTimestamp(),
+        'likes': [],
+        'shares': [],
+        'isFlagged': false,
+        'reportCount': 0,
+      });
+    } catch (e) {
+      print("Error creating interactive post: $e");
+      throw Exception("Failed to create interactive post");
+    }
+  }
+
+  Future<void> voteOnPoll(String postId, String option) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+
+      DocumentReference postRef =
+          _firestore.collection('interactive_posts').doc(postId);
+
+      await _firestore.runTransaction((transaction) async {
+        DocumentSnapshot snapshot = await transaction.get(postRef);
+        if (!snapshot.exists) {
+          throw Exception("Post does not exist!");
+        }
+
+        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+        Map<String, List<dynamic>> votes =
+            Map<String, List<dynamic>>.from(data['votes']);
+
+        // Remove user's previous vote if any
+        votes.forEach((key, value) {
+          value.remove(currentUser.uid);
+        });
+
+        // Add new vote
+        votes[option]!.add(currentUser.uid);
+
+        transaction.update(postRef, {'votes': votes});
+      });
+    } catch (e) {
+      print("Error voting on poll: $e");
+      throw Exception("Failed to vote on poll");
+    }
+  }
+
+  Future<void> joinEvent(String postId) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+
+      await _firestore.collection('interactive_posts').doc(postId).update({
+        'attendees': FieldValue.arrayUnion([currentUser.uid]),
+      });
+    } catch (e) {
+      print("Error joining event: $e");
+      throw Exception("Failed to join event");
+    }
+  }
+
+  Future<void> answerQuestion(String postId, String answerContent) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+
+      Map<String, dynamic> newAnswer = {
+        'authorId': currentUser.uid,
+        'answerContent': answerContent,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore.collection('interactive_posts').doc(postId).update({
+        'answers': FieldValue.arrayUnion([newAnswer]),
+      });
+    } catch (e) {
+      print("Error answering question: $e");
+      throw Exception("Failed to answer question");
+    }
+  }
+
+  Future<DocumentSnapshot?> getInteractivePost(String postId) async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('interactive_posts').doc(postId).get();
+      if (doc.exists) {
+        return doc;
+      }
+      return null;
+    } catch (e) {
+      print("Error getting interactive post: $e");
+      return null;
+    }
+  }
 }

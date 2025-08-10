@@ -5,10 +5,16 @@ import 'package:grtoco/screens/conversations_screen.dart';
 import 'package:grtoco/screens/create_group_screen.dart';
 import 'package:grtoco/screens/group_screen.dart';
 import 'package:grtoco/screens/post_reel_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:grtoco/models/interactive_post.dart';
+import 'package:grtoco/screens/create_post_screen.dart';
 import 'package:grtoco/screens/profile_screen.dart';
 import 'package:grtoco/screens/reels_screen.dart';
 import 'package:grtoco/services/auth_service.dart';
 import 'package:grtoco/services/group_service.dart';
+import 'package:grtoco/widgets/event_widget.dart';
+import 'package:grtoco/widgets/poll_widget.dart';
+import 'package:grtoco/widgets/qa_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -38,15 +44,18 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => CreateGroupScreen()),
+            MaterialPageRoute(builder: (context) => CreatePostScreen()),
           ).then((value) {
             if (mounted) {
+              // Refresh the feed after creating a post
+              // This is a simple way to do it. A more sophisticated
+              // approach might use a stream or a state management solution.
               setState(() {});
             }
           });
         },
         child: Icon(Icons.add),
-        tooltip: 'Create Group',
+        tooltip: 'Create Post',
       );
     } else if (_selectedIndex == 1) {
       return FloatingActionButton(
@@ -264,13 +273,41 @@ class _HomeFeedState extends State<HomeFeed> {
       itemCount: _posts.length,
       itemBuilder: (context, index) {
         final post = _posts[index];
-        return Card(
-          margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: ListTile(
-            title: Text(post.authorId),
-            subtitle: Text(post.textContent ?? ''),
-          ),
-        );
+        if (post.postType == PostType.interactive) {
+          return FutureBuilder<DocumentSnapshot?>(
+            future: _groupService.getInteractivePost(post.postId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+              if (!snapshot.hasData || snapshot.data == null) {
+                return Card(
+                  child: ListTile(
+                    title: Text('Interactive post not found.'),
+                  ),
+                );
+              }
+              final interactivePost = InteractivePost.fromJson(
+                  snapshot.data!.data() as Map<String, dynamic>);
+              switch (interactivePost.postType) {
+                case InteractivePostType.poll:
+                  return PollWidget(poll: interactivePost);
+                case InteractivePostType.event:
+                  return EventWidget(event: interactivePost);
+                case InteractivePostType.qa:
+                  return QaWidget(qaPost: interactivePost);
+              }
+            },
+          );
+        } else {
+          return Card(
+            margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: ListTile(
+              title: Text(post.authorId),
+              subtitle: Text(post.textContent ?? 'This is a standard post.'),
+            ),
+          );
+        }
       },
     );
   }

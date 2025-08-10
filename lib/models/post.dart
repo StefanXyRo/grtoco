@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum PostType { text, image, video }
+enum PostType { text, image, video, interactive }
 
 class Post {
   final String postId;
