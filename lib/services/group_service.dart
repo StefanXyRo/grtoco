@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:grtoco/models/group.dart';
+import 'package:grtoco/models/post.dart';
 import 'package:grtoco/models/user.dart' as model_user;
 
 class GroupService {
@@ -188,6 +189,22 @@ class GroupService {
     } catch (e) {
       print("Error declining join request: $e");
       throw Exception("Failed to decline join request");
+    }
+  }
+
+  Future<List<Post>> getPostsForGroup(String groupId) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('posts')
+          .where('groupId', isEqualTo: groupId)
+          .orderBy('timestamp', descending: true)
+          .get();
+      return snapshot.docs
+          .map((doc) => Post.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print("Error getting posts for group: $e");
+      return [];
     }
   }
 }

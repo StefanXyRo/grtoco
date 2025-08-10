@@ -7,6 +7,8 @@ class Comment {
   final String textContent;
   final DateTime timestamp;
   final List<String> likes;
+  final bool isFlagged;
+  final int reportCount;
 
   Comment({
     required this.commentId,
@@ -15,6 +17,8 @@ class Comment {
     required this.textContent,
     required this.timestamp,
     this.likes = const [],
+    this.isFlagged = false,
+    this.reportCount = 0,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -25,6 +29,8 @@ class Comment {
       textContent: json['textContent'] as String,
       timestamp: (json['timestamp'] as Timestamp).toDate(),
       likes: List<String>.from(json['likes'] ?? []),
+      isFlagged: json['isFlagged'] as bool? ?? false,
+      reportCount: json['reportCount'] as int? ?? 0,
     );
   }
 
@@ -36,6 +42,8 @@ class Comment {
       'textContent': textContent,
       'timestamp': Timestamp.fromDate(timestamp),
       'likes': likes,
+      'isFlagged': isFlagged,
+      'reportCount': reportCount,
     };
   }
 }
