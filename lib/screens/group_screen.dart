@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:grtoco/models/group.dart';
 import 'package:grtoco/models/message.dart';
+import 'package:grtoco/models/story.dart';
 import 'package:grtoco/models/user.dart' as model_user;
 import 'package:grtoco/services/auth_service.dart';
 import 'package:grtoco/services/group_service.dart';
+import 'package:grtoco/services/story_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
@@ -13,7 +15,8 @@ import 'package:grtoco/screens/live_stream_screen.dart';
 import 'package:grtoco/services/live_stream_service.dart';
 import 'package:grtoco/screens/video_call_screen.dart';
 import 'package:grtoco/services/video_call_service.dart';
-
+import 'package:grtoco/screens/story_view_screen.dart';
+import 'package:grtoco/screens/confirm_story_screen.dart';
 
 import 'manage_members_screen.dart';
 
@@ -28,6 +31,7 @@ class GroupScreen extends StatefulWidget {
 
 class _GroupScreenState extends State<GroupScreen> {
   final GroupService _groupService = GroupService();
+  final StoryService _storyService = StoryService();
   final LiveStreamService _liveStreamService = LiveStreamService();
   final VideoCallService _videoCallService = VideoCallService();
   final TextEditingController _messageController = TextEditingController();
@@ -79,6 +83,7 @@ class _GroupScreenState extends State<GroupScreen> {
       ),
       body: Column(
         children: [
+          _buildStoriesBar(widget.groupId, currentUser?.uid),
           Expanded(
             child: StreamBuilder<List<Message>>(
               stream: _groupService.getMessages(widget.groupId),
@@ -103,6 +108,190 @@ class _GroupScreenState extends State<GroupScreen> {
           ),
           _buildMessageInput(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStoriesBar(String groupId, String? currentUserId) {
+    return Container(
+      height: 120,
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: StreamBuilder<List<Story>>(
+        stream: _storyService.getStoriesForGroup(groupId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data == null) {
+            return Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: _buildAddStoryButton(context, currentUserId),
+            );
+          }
+
+          final stories = snapshot.data!;
+          final Map<String, List<Story>> storiesByAuthor = {};
+          for (var story in stories) {
+            if (storiesByAuthor.containsKey(story.authorId)) {
+              storiesByAuthor[story.authorId]!.add(story);
+            } else {
+              storiesByAuthor[story.authorId] = [story];
+            }
+          }
+
+          final storyAuthors = storiesByAuthor.keys.toList();
+
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: storyAuthors.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return _buildAddStoryButton(context, currentUserId);
+              }
+              final authorId = storyAuthors[index - 1];
+              final userStories = storiesByAuthor[authorId]!;
+              return _buildStoryAvatar(context, authorId, userStories, currentUserId);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildAddStoryButton(BuildContext context, String? currentUserId) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: GestureDetector(
+        onTap: () {
+          if (currentUserId == null) return;
+          showModalBottomSheet(
+            context: context,
+            builder: (context) {
+              return SafeArea(
+                child: Wrap(
+                  children: <Widget>[
+                    ListTile(
+                      leading: Icon(Icons.photo_library),
+                      title: Text('Image from Gallery'),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _pickMedia(ImageSource.gallery, isVideo: false, currentUserId: currentUserId);
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.video_library),
+                      title: Text('Video from Gallery'),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _pickMedia(ImageSource.gallery, isVideo: true, currentUserId: currentUserId);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: Colors.grey[300],
+              child: Icon(Icons.add, size: 28, color: Colors.black),
+            ),
+            SizedBox(height: 8),
+            Text("Add Story", style: TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickMedia(ImageSource source, {required bool isVideo, required String currentUserId}) async {
+    final picker = ImagePicker();
+    final pickedFile = isVideo
+        ? await picker.pickVideo(source: source)
+        : await picker.pickImage(source: source);
+
+    if (pickedFile == null) return;
+
+    if (mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ConfirmStoryScreen(
+            mediaFile: File(pickedFile.path),
+            groupId: widget.groupId,
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildStoryAvatar(BuildContext context, String authorId, List<Story> stories, String? currentUserId) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final hasUnseen = stories.any((s) => !s.viewers.contains(currentUserId));
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StoryViewScreen(
+              stories: stories,
+              authorId: authorId,
+            ),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(2.0),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: hasUnseen ? Colors.pinkAccent : Colors.grey,
+                  width: 2.5,
+                ),
+              ),
+              child: FutureBuilder<model_user.User?>(
+                future: authService.getUser(authorId),
+                builder: (context, userSnapshot) {
+                  if (!userSnapshot.hasData) {
+                    return CircleAvatar(radius: 32, backgroundColor: Colors.grey[200]);
+                  }
+                  final user = userSnapshot.data!;
+                  return CircleAvatar(
+                    radius: 32,
+                    backgroundImage: user.profileImageUrl != null
+                        ? NetworkImage(user.profileImageUrl!)
+                        : null,
+                    child: user.profileImageUrl == null
+                        ? Text(user.displayName?.substring(0, 1).toUpperCase() ?? 'U', style: TextStyle(fontSize: 24))
+                        : null,
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 8),
+            FutureBuilder<model_user.User?>(
+              future: authService.getUser(authorId),
+              builder: (context, userSnapshot) {
+                return Text(
+                  userSnapshot.data?.displayName ?? 'User',
+                  style: TextStyle(fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -154,7 +343,6 @@ class _GroupScreenState extends State<GroupScreen> {
   }
 
   Widget _buildReplyPreview(String messageId) {
-    // In a real app, you would fetch the message content here
     return Container(
       padding: const EdgeInsets.all(8.0),
       margin: const EdgeInsets.only(bottom: 4.0),
@@ -163,7 +351,7 @@ class _GroupScreenState extends State<GroupScreen> {
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: Text(
-        'Replying to message...', // Placeholder
+        'Replying to message...',
         style: TextStyle(fontStyle: FontStyle.italic),
       ),
     );
