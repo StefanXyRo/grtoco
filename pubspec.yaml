@@ -25,6 +25,7 @@ dependencies:
   agora_rtc_engine: ^6.2.2
   uuid: ^4.3.3
   cached_network_image: ^3.3.1
+  encrypt: ^5.0.3
 
 
   cupertino_icons: ^1.0.2

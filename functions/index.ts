@@ -86,3 +86,50 @@ function getPathFromUrl(url: string): string | null {
     return null;
   }
 }
+
+export const deleteDisappearingMessages = functions.pubsub
+  .schedule("every 1 hours")
+  .onRun(async (context) => {
+    functions.logger.info("Running scheduled job to delete disappearing messages.");
+
+    const conversationsSnapshot = await db.collection("conversations").get();
+    if (conversationsSnapshot.empty) {
+      functions.logger.info("No conversations found.");
+      return null;
+    }
+
+    const promises: Promise<any>[] = [];
+
+    for (const conversationDoc of conversationsSnapshot.docs) {
+      const messagesQuery = conversationDoc.ref.collection("messages")
+        .where("disappearAfter", ">", 0);
+
+      const messagesSnapshot = await messagesQuery.get();
+
+      if (!messagesSnapshot.empty) {
+        const batch = db.batch();
+        let deletedCount = 0;
+
+        messagesSnapshot.docs.forEach((messageDoc) => {
+          const message = messageDoc.data();
+          const sentAt = (message.timestamp as admin.firestore.Timestamp).toDate();
+          const hoursToDisappear = message.disappearAfter as number;
+          const disappearsAt = new Date(sentAt.getTime() + hoursToDisappear * 60 * 60 * 1000);
+
+          if (new Date() > disappearsAt) {
+            batch.delete(messageDoc.ref);
+            deletedCount++;
+          }
+        });
+
+        if (deletedCount > 0) {
+          promises.push(batch.commit());
+          functions.logger.info(`Deleting ${deletedCount} messages from conversation ${conversationDoc.id}`);
+        }
+      }
+    }
+
+    await Promise.all(promises);
+    functions.logger.info("Finished deleting disappearing messages.");
+    return null;
+  });

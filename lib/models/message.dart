@@ -14,6 +14,10 @@ class Message {
   final List<String> mentions;
   final bool isFlagged;
   final int reportCount;
+  final bool isEdited;
+  final Map<String, List<String>> reactions;
+  final bool isPinned;
+  final int? disappearAfter; // in hours
 
   Message({
     required this.messageId,
@@ -29,6 +33,10 @@ class Message {
     this.mentions = const [],
     this.isFlagged = false,
     this.reportCount = 0,
+    this.isEdited = false,
+    this.reactions = const {},
+    this.isPinned = false,
+    this.disappearAfter,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -46,6 +54,13 @@ class Message {
       mentions: List<String>.from(json['mentions'] ?? []),
       isFlagged: json['isFlagged'] as bool? ?? false,
       reportCount: json['reportCount'] as int? ?? 0,
+      isEdited: json['isEdited'] as bool? ?? false,
+      reactions: (json['reactions'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, List<String>.from(value)),
+          ) ??
+          {},
+      isPinned: json['isPinned'] as bool? ?? false,
+      disappearAfter: json['disappearAfter'] as int?,
     );
   }
 
@@ -64,6 +79,10 @@ class Message {
       'mentions': mentions,
       'isFlagged': isFlagged,
       'reportCount': reportCount,
+      'isEdited': isEdited,
+      'reactions': reactions,
+      'isPinned': isPinned,
+      'disappearAfter': disappearAfter,
     };
   }
 }

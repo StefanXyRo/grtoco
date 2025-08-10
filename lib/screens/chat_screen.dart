@@ -27,23 +27,46 @@ class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   final FlutterSoundPlayer _player = FlutterSoundPlayer();
   bool _isRecording = false;
   String? _recordingPath;
+  bool _isSearching = false;
+  List<Message> _allMessages = [];
+  List<Message> _filteredMessages = [];
 
   @override
   void initState() {
     super.initState();
     _initRecorder();
     _initPlayer();
+    _searchController.addListener(_filterMessages);
   }
 
   @override
   void dispose() {
     _recorder.closeRecorder();
     _player.closePlayer();
+    _messageController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _filterMessages() {
+    final query = _searchController.text.toLowerCase();
+    if (query.isEmpty) {
+      setState(() {
+        _filteredMessages = _allMessages;
+      });
+    } else {
+      setState(() {
+        _filteredMessages = _allMessages
+            .where((message) =>
+                message.textContent?.toLowerCase().contains(query) ?? false)
+            .toList();
+      });
+    }
   }
 
   Future<void> _initRecorder() async {
@@ -124,26 +147,51 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chat with User ${widget.otherUserId}'), // Replace with actual user name
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Search messages...',
+                  hintStyle: TextStyle(color: Colors.white),
+                ),
+                style: const TextStyle(color: Colors.white),
+                autofocus: true,
+              )
+            : Text('Chat'), // Replace with actual user/group name
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                }
+              });
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
+          _buildPinnedMessages(),
           Expanded(
             child: StreamBuilder<List<Message>>(
               stream: _chatService.getMessages(widget.conversationId),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Center(child: Text('Something went wrong'));
+                  return Center(child: Text('Error: ${snapshot.error}'));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final messages = snapshot.data ?? [];
+                _allMessages = snapshot.data ?? [];
+                _filterMessages(); // Initial filter
                 return ListView.builder(
                   reverse: true,
-                  itemCount: messages.length,
+                  itemCount: _filteredMessages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index];
+                    final message = _filteredMessages[index];
                     final isMe = message.senderId == _auth.currentUser!.uid;
                     return _buildMessageBubble(message, isMe);
                   },
@@ -158,20 +206,193 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageBubble(Message message, bool isMe) {
-    return Container(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Card(
-        color: isMe ? Colors.blue[100] : Colors.grey[300],
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: message.mediaType == 'voice'
-              ? IconButton(
-                  icon: const Icon(Icons.play_arrow),
-                  onPressed: () => _playVoiceMessage(message.mediaUrl!),
-                )
-              : Text(message.textContent ?? ''),
+    return GestureDetector(
+      onLongPress: () {
+        _showMessageOptions(context, message);
+      },
+      child: Container(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Card(
+          color: isMe ? Colors.blue[100] : Colors.grey[300],
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                message.mediaType == 'voice'
+                    ? IconButton(
+                        icon: const Icon(Icons.play_arrow),
+                        onPressed: () => _playVoiceMessage(message.mediaUrl!),
+                      )
+                    : Text(message.textContent ?? ''),
+                if (message.isEdited)
+                  const Text(
+                    ' (edited)',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                _buildReactions(message.reactions),
+              ],
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPinnedMessages() {
+    return StreamBuilder<List<Message>>(
+      stream: _chatService.getPinnedMessages(widget.conversationId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final pinnedMessages = snapshot.data!;
+        // Simple UI for pinned messages, could be a carousel or a single line
+        return Container(
+          padding: const EdgeInsets.all(8.0),
+          color: Colors.amber[100],
+          child: Text(
+            'Pinned: ${pinnedMessages.first.textContent}', // Shows the first pinned message
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReactions(Map<String, List<String>> reactions) {
+    if (reactions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Wrap(
+      spacing: 4.0,
+      children: reactions.entries.map((entry) {
+        return Chip(
+          label: Text('${entry.key} ${entry.value.length}'),
+          padding: EdgeInsets.zero,
+        );
+      }).toList(),
+    );
+  }
+
+  void _showMessageOptions(BuildContext context, Message message) {
+    final isMe = message.senderId == _auth.currentUser!.uid;
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext bc) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.reply),
+                title: const Text('Reply'),
+                onTap: () {
+                  // TODO: Implement reply functionality
+                  Navigator.of(context).pop();
+                },
+              ),
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Edit'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showEditDialog(message);
+                  },
+                ),
+              if (isMe &&
+                  DateTime.now().difference(message.timestamp).inMinutes < 5)
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Delete'),
+                  onTap: () {
+                    _chatService.deleteMessage(
+                        widget.conversationId, message.messageId);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.push_pin),
+                title: Text(message.isPinned ? 'Unpin' : 'Pin'),
+                onTap: () {
+                  if (message.isPinned) {
+                    _chatService.unpinMessage(
+                        widget.conversationId, message.messageId);
+                  } else {
+                    _chatService.pinMessage(
+                        widget.conversationId, message.messageId);
+                  }
+                  Navigator.of(context).pop();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.emoji_emotions),
+                title: const Text('React'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showReactionPicker(message.messageId);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditDialog(Message message) {
+    final editController = TextEditingController(text: message.textContent);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Message'),
+        content: TextField(
+          controller: editController,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          TextButton(
+            child: const Text('Save'),
+            onPressed: () {
+              _chatService.editMessage(
+                  widget.conversationId, message.messageId, editController.text);
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReactionPicker(String messageId) {
+    // A simple reaction bar
+    final reactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Container(
+            height: 60,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: reactions.map((reaction) {
+                return IconButton(
+                  icon: Text(reaction, style: const TextStyle(fontSize: 24)),
+                  onPressed: () {
+                    _chatService.toggleReaction(widget.conversationId,
+                        messageId, reaction, _auth.currentUser!.uid);
+                    Navigator.of(context).pop();
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
     );
   }
 
