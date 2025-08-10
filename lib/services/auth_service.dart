@@ -30,7 +30,7 @@ class AuthService {
 
   // Sign up with email and password
   Future<fb_auth.UserCredential?> signUpWithEmailAndPassword(
-      String email, String password, String displayName) async {
+      String email, String password, String displayName, String languageCode) async {
     try {
       fb_auth.UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
@@ -39,7 +39,7 @@ class AuthService {
       );
 
       // Create a new user document in Firestore
-      await _createUserDocument(userCredential.user, displayName);
+      await _createUserDocument(userCredential.user, displayName, languageCode);
 
       return userCredential;
     } on fb_auth.FirebaseAuthException catch (e) {
@@ -50,7 +50,7 @@ class AuthService {
   }
 
   // Create a user document in Firestore
-  Future<void> _createUserDocument(fb_auth.User? user, String displayName) async {
+  Future<void> _createUserDocument(fb_auth.User? user, String displayName, String languageCode) async {
     if (user == null) return;
 
     User newUser = User(
@@ -59,6 +59,7 @@ class AuthService {
       displayName: displayName,
       profileImageUrl: '',
       bio: '',
+      languageCode: languageCode,
       followersCount: 0,
       followingCount: 0,
       isPrivate: false,

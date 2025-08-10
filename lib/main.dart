@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:grtoco/screens/login_screen.dart';
+import 'package:grtoco/screens/onboarding_screen.dart';
 import 'package:grtoco/services/group_service.dart';
 import 'package:provider/provider.dart';
 import 'package:grtoco/services/auth_service.dart';
@@ -8,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:grtoco/screens/home_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // IMPORTANT:
 // 1. Create a Firebase project at https://console.firebase.google.com/.
@@ -24,12 +26,28 @@ void main() async {
   // You can get this from your Firebase project settings.
   // See: https://firebase.google.com/docs/flutter/setup
   await Firebase.initializeApp(
-     // options: DefaultFirebaseOptions.currentPlatform, // Uncomment this line after setting up firebase_cli
-  );
-  runApp(MyApp());
+      // options: DefaultFirebaseOptions.currentPlatform, // Uncomment this line after setting up firebase_cli
+      );
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingComplete = prefs.getBool('onboardingComplete') ?? false;
+  final languageCode = prefs.getString('languageCode');
+
+  runApp(MyApp(
+    onboardingComplete: onboardingComplete,
+    languageCode: languageCode,
+  ));
 }
 
 class MyApp extends StatelessWidget {
+  final bool onboardingComplete;
+  final String? languageCode;
+
+  const MyApp({
+    Key? key,
+    required this.onboardingComplete,
+    this.languageCode,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -50,6 +68,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
+        locale: languageCode != null ? Locale(languageCode!) : null,
         localizationsDelegates: [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -69,7 +88,7 @@ class MyApp extends StatelessWidget {
           Locale('ar', ''),
           Locale('hi', ''),
         ],
-        home: AuthWrapper(),
+        home: onboardingComplete ? AuthWrapper() : OnboardingScreen(),
       ),
     );
   }

@@ -4,6 +4,7 @@ class User {
   final String? displayName;
   final String? profileImageUrl;
   final String? bio;
+  final String? languageCode;
   final List<String> joinedGroupIds;
   final int followersCount;
   final int followingCount;
@@ -18,6 +19,7 @@ class User {
     this.displayName,
     this.profileImageUrl,
     this.bio,
+    this.languageCode,
     this.joinedGroupIds = const [],
     this.followersCount = 0,
     this.followingCount = 0,
@@ -34,6 +36,7 @@ class User {
       displayName: json['displayName'] as String?,
       profileImageUrl: json['profileImageUrl'] as String?,
       bio: json['bio'] as String?,
+      languageCode: json['languageCode'] as String?,
       joinedGroupIds: List<String>.from(json['joinedGroupIds'] ?? []),
       followersCount: json['followersCount'] as int? ?? 0,
       followingCount: json['followingCount'] as int? ?? 0,
@@ -51,6 +54,7 @@ class User {
       'displayName': displayName,
       'profileImageUrl': profileImageUrl,
       'bio': bio,
+      'languageCode': languageCode,
       'joinedGroupIds': joinedGroupIds,
       'followersCount': followersCount,
       'followingCount': followingCount,
