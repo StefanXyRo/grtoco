@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:grtoco/models/group.dart';
 import 'package:grtoco/models/post.dart';
+import 'package:grtoco/screens/conversations_screen.dart';
 import 'package:grtoco/screens/create_group_screen.dart';
 import 'package:grtoco/screens/group_screen.dart';
 import 'package:grtoco/screens/post_reel_screen.dart';
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static final List<Widget> _widgetOptions = <Widget>[
     HomeFeed(),
     ReelsScreen(),
+    ConversationsScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -97,6 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
+      AppBar(
+        title: Text('Conversations'),
+      )
     ];
 
     return Scaffold(
@@ -114,6 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.video_library),
             label: 'Reels',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chat',
           ),
         ],
         currentIndex: _selectedIndex,

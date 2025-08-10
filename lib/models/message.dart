@@ -8,6 +8,8 @@ class Message {
   final DateTime timestamp;
   final bool isMedia;
   final String? mediaUrl;
+  final String? mediaType; // e.g., 'image', 'video', 'voice'
+  final Map<String, dynamic> readBy;
   final String? isReplyTo; // messageId of the message being replied to
   final List<String> mentions;
   final bool isFlagged;
@@ -21,6 +23,8 @@ class Message {
     required this.timestamp,
     this.isMedia = false,
     this.mediaUrl,
+    this.mediaType,
+    this.readBy = const {},
     this.isReplyTo,
     this.mentions = const [],
     this.isFlagged = false,
@@ -36,6 +40,8 @@ class Message {
       timestamp: (json['timestamp'] as Timestamp).toDate(),
       isMedia: json['isMedia'] as bool? ?? false,
       mediaUrl: json['mediaUrl'] as String?,
+      mediaType: json['mediaType'] as String?,
+      readBy: Map<String, dynamic>.from(json['readBy'] ?? {}),
       isReplyTo: json['isReplyTo'] as String?,
       mentions: List<String>.from(json['mentions'] ?? []),
       isFlagged: json['isFlagged'] as bool? ?? false,
@@ -52,6 +58,8 @@ class Message {
       'timestamp': Timestamp.fromDate(timestamp),
       'isMedia': isMedia,
       'mediaUrl': mediaUrl,
+      'mediaType': mediaType,
+      'readBy': readBy,
       'isReplyTo': isReplyTo,
       'mentions': mentions,
       'isFlagged': isFlagged,
