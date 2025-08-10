@@ -11,6 +11,8 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:grtoco/screens/live_stream_screen.dart';
 import 'package:grtoco/services/live_stream_service.dart';
+import 'package:grtoco/screens/video_call_screen.dart';
+import 'package:grtoco/services/video_call_service.dart';
 
 
 import 'manage_members_screen.dart';
@@ -27,6 +29,7 @@ class GroupScreen extends StatefulWidget {
 class _GroupScreenState extends State<GroupScreen> {
   final GroupService _groupService = GroupService();
   final LiveStreamService _liveStreamService = LiveStreamService();
+  final VideoCallService _videoCallService = VideoCallService();
   final TextEditingController _messageController = TextEditingController();
   Message? _replyingTo;
   File? _mediaFile;
@@ -48,6 +51,7 @@ class _GroupScreenState extends State<GroupScreen> {
           },
         ),
         actions: [
+          _buildVideoCallButton(),
           _buildLiveStreamButton(currentUser?.uid),
           FutureBuilder<Group?>(
             future: _groupService.getGroup(widget.groupId),
@@ -400,6 +404,48 @@ class _GroupScreenState extends State<GroupScreen> {
           );
         }
         return SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildVideoCallButton() {
+    return FutureBuilder<Group?>(
+      future: _groupService.getGroup(widget.groupId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return SizedBox.shrink();
+        }
+        final group = snapshot.data!;
+        final isCallActive = group.videoCallId != null;
+
+        if (isCallActive) {
+          return TextButton.icon(
+            icon: Icon(Icons.video_camera_front, color: Colors.green),
+            label: Text('Join Call', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VideoCallScreen(groupId: widget.groupId),
+                ),
+              );
+            },
+          );
+        } else {
+          return TextButton.icon(
+            icon: Icon(Icons.video_call, color: Colors.white),
+            label: Text('Video Call', style: TextStyle(color: Colors.white)),
+            onPressed: () async {
+              await _videoCallService.startVideoCall(widget.groupId);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VideoCallScreen(groupId: widget.groupId),
+                ),
+              );
+            },
+          );
+        }
       },
     );
   }
