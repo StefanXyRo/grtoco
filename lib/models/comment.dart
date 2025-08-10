@@ -9,6 +9,7 @@ class Comment {
   final List<String> likes;
   final bool isFlagged;
   final int reportCount;
+  final bool hidden;
 
   Comment({
     required this.commentId,
@@ -19,6 +20,7 @@ class Comment {
     this.likes = const [],
     this.isFlagged = false,
     this.reportCount = 0,
+    this.hidden = false,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class Comment {
       likes: List<String>.from(json['likes'] ?? []),
       isFlagged: json['isFlagged'] as bool? ?? false,
       reportCount: json['reportCount'] as int? ?? 0,
+      hidden: json['hidden'] as bool? ?? false,
     );
   }
 
@@ -44,6 +47,7 @@ class Comment {
       'likes': likes,
       'isFlagged': isFlagged,
       'reportCount': reportCount,
+      'hidden': hidden,
     };
   }
 }

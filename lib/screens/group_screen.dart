@@ -9,6 +9,9 @@ import 'package:grtoco/services/group_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:grtoco/screens/live_stream_screen.dart';
+import 'package:grtoco/services/live_stream_service.dart';
+
 
 import 'manage_members_screen.dart';
 
@@ -23,6 +26,7 @@ class GroupScreen extends StatefulWidget {
 
 class _GroupScreenState extends State<GroupScreen> {
   final GroupService _groupService = GroupService();
+  final LiveStreamService _liveStreamService = LiveStreamService();
   final TextEditingController _messageController = TextEditingController();
   Message? _replyingTo;
   File? _mediaFile;
@@ -44,6 +48,7 @@ class _GroupScreenState extends State<GroupScreen> {
           },
         ),
         actions: [
+          _buildLiveStreamButton(currentUser?.uid),
           FutureBuilder<Group?>(
             future: _groupService.getGroup(widget.groupId),
             builder: (context, snapshot) {
@@ -347,6 +352,56 @@ class _GroupScreenState extends State<GroupScreen> {
       _replyingTo = null;
       _mediaFile = null;
     });
+  }
+
+  Widget _buildLiveStreamButton(String? currentUserId) {
+    return FutureBuilder<Group?>(
+      future: _groupService.getGroup(widget.groupId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return SizedBox.shrink();
+        }
+        final group = snapshot.data!;
+        final isOwner = group.ownerId == currentUserId;
+        final isLive = group.liveStreamId != null;
+
+        if (isLive) {
+          return TextButton.icon(
+            icon: Icon(Icons.live_tv, color: Colors.red),
+            label: Text('Join Live', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LiveStreamScreen(
+                    groupId: widget.groupId,
+                    isHost: isOwner,
+                  ),
+                ),
+              );
+            },
+          );
+        } else if (isOwner) {
+          return TextButton.icon(
+            icon: Icon(Icons.video_call, color: Colors.white),
+            label: Text('Go Live', style: TextStyle(color: Colors.white)),
+            onPressed: () async {
+              await _liveStreamService.startLiveStream(widget.groupId);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LiveStreamScreen(
+                    groupId: widget.groupId,
+                    isHost: true,
+                  ),
+                ),
+              );
+            },
+          );
+        }
+        return SizedBox.shrink();
+      },
+    );
   }
 }
 

@@ -21,6 +21,9 @@ dependencies:
   flutter_sound: ^9.2.13
   permission_handler: ^11.0.1
   path_provider: ^2.0.15
+  agora_uikit: ^1.3.6
+  agora_rtc_engine: ^6.2.2
+
 
   cupertino_icons: ^1.0.2
 

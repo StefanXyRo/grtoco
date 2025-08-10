@@ -17,6 +17,7 @@ class Group {
   final List<String> invitedUserIds;
   final List<String> pendingJoinRequests;
   final List<String> tags;
+  final String? liveStreamId;
 
   Group({
     required this.groupId,
@@ -33,6 +34,7 @@ class Group {
     this.invitedUserIds = const [],
     this.pendingJoinRequests = const [],
     this.tags = const [],
+    this.liveStreamId,
   });
 
   factory Group.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,7 @@ class Group {
       invitedUserIds: List<String>.from(json['invitedUserIds'] ?? []),
       pendingJoinRequests: List<String>.from(json['pendingJoinRequests'] ?? []),
       tags: List<String>.from(json['tags'] ?? []),
+      liveStreamId: json['liveStreamId'] as String?,
     );
   }
 
@@ -73,6 +76,7 @@ class Group {
       'invitedUserIds': invitedUserIds,
       'pendingJoinRequests': pendingJoinRequests,
       'tags': tags,
+      'liveStreamId': liveStreamId,
     };
   }
 }
