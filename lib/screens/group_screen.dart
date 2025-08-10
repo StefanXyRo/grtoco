@@ -48,6 +48,9 @@ class _GroupScreenState extends State<GroupScreen> {
           final group = snapshot.data!;
           final isOwner = group.ownerId == currentUser?.uid;
           final isAdmin = group.adminIds.contains(currentUser?.uid);
+          final isMember = group.memberIds.contains(currentUser?.uid);
+          final hasRequested =
+              group.pendingJoinRequests.contains(currentUser?.uid);
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -71,9 +74,36 @@ class _GroupScreenState extends State<GroupScreen> {
                             groupId: widget.groupId,
                           ),
                         ),
-                      );
+                      ).then((_) => setState(() {
+                            _groupFuture =
+                                GroupService().getGroup(widget.groupId);
+                          }));
                     },
                     child: Text('Manage Members'),
+                  ),
+                if (group.groupType == GroupType.secret &&
+                    !isMember &&
+                    !hasRequested)
+                  ElevatedButton(
+                    onPressed: () async {
+                      await GroupService().requestToJoinGroup(widget.groupId);
+                      setState(() {
+                        _groupFuture = GroupService().getGroup(widget.groupId);
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Request to join sent!'),
+                        ),
+                      );
+                    },
+                    child: Text('Request to Join'),
+                  ),
+                if (group.groupType == GroupType.secret &&
+                    !isMember &&
+                    hasRequested)
+                  ElevatedButton(
+                    onPressed: null,
+                    child: Text('Request Sent'),
                   ),
               ],
             ),

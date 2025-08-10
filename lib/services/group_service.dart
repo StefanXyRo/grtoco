@@ -125,4 +125,69 @@ class GroupService {
       return [];
     }
   }
+
+  Future<void> requestToJoinGroup(String groupId) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+      await _groupsCollection.doc(groupId).update({
+        'pendingJoinRequests': FieldValue.arrayUnion([currentUser.uid]),
+      });
+    } catch (e) {
+      print("Error requesting to join group: $e");
+      throw Exception("Failed to request to join group");
+    }
+  }
+
+  Future<List<model_user.User>> getPendingRequests(String groupId) async {
+    try {
+      DocumentSnapshot groupDoc = await _groupsCollection.doc(groupId).get();
+      if (groupDoc.exists) {
+        Group group = Group.fromJson(groupDoc.data() as Map<String, dynamic>);
+        List<String> pendingIds = group.pendingJoinRequests;
+        List<model_user.User> users = [];
+        for (String userId in pendingIds) {
+          DocumentSnapshot userDoc =
+              await _firestore.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            users.add(
+                model_user.User.fromJson(userDoc.data() as Map<String, dynamic>));
+          }
+        }
+        return users;
+      }
+      return [];
+    } catch (e) {
+      print("Error getting pending requests: $e");
+      return [];
+    }
+  }
+
+  Future<void> acceptJoinRequest(String groupId, String userId) async {
+    try {
+      await _groupsCollection.doc(groupId).update({
+        'memberIds': FieldValue.arrayUnion([userId]),
+        'pendingJoinRequests': FieldValue.arrayRemove([userId]),
+      });
+      await _firestore.collection('users').doc(userId).update({
+        'joinedGroupIds': FieldValue.arrayUnion([groupId]),
+      });
+    } catch (e) {
+      print("Error accepting join request: $e");
+      throw Exception("Failed to accept join request");
+    }
+  }
+
+  Future<void> declineJoinRequest(String groupId, String userId) async {
+    try {
+      await _groupsCollection.doc(groupId).update({
+        'pendingJoinRequests': FieldValue.arrayRemove([userId]),
+      });
+    } catch (e) {
+      print("Error declining join request: $e");
+      throw Exception("Failed to decline join request");
+    }
+  }
 }
