@@ -19,6 +19,8 @@ class Group {
   final List<String> tags;
   final String? liveStreamId;
   final String? videoCallId;
+  final String postingPermissions;
+  final List<String> rules;
 
   Group({
     required this.groupId,
@@ -37,6 +39,8 @@ class Group {
     this.tags = const [],
     this.liveStreamId,
     this.videoCallId,
+    this.postingPermissions = 'allMembers',
+    this.rules = const [],
   });
 
   factory Group.fromJson(Map<String, dynamic> json) {
@@ -60,6 +64,8 @@ class Group {
       tags: List<String>.from(json['tags'] ?? []),
       liveStreamId: json['liveStreamId'] as String?,
       videoCallId: json['videoCallId'] as String?,
+      postingPermissions: json['postingPermissions'] as String? ?? 'allMembers',
+      rules: List<String>.from(json['rules'] ?? []),
     );
   }
 
@@ -81,6 +87,8 @@ class Group {
       'tags': tags,
       'liveStreamId': liveStreamId,
       'videoCallId': videoCallId,
+      'postingPermissions': postingPermissions,
+      'rules': rules,
     };
   }
 }

@@ -20,6 +20,9 @@ class GroupService {
     String? description,
     required GroupType groupType,
     required List<String> tags,
+    required String postingPermissions,
+    required List<String> rules,
+    File? profileImage,
   }) async {
     try {
       User? currentUser = _auth.currentUser;
@@ -28,24 +31,44 @@ class GroupService {
       }
 
       String groupId = _groupsCollection.doc().id;
+      String? groupProfileImageUrl;
+
+      if (profileImage != null) {
+        groupProfileImageUrl = await _uploadGroupProfileImage(profileImage, groupId);
+      }
+
       Group newGroup = Group(
         groupId: groupId,
         groupName: groupName,
         description: description,
+        groupProfileImageUrl: groupProfileImageUrl,
         ownerId: currentUser.uid,
         adminIds: [currentUser.uid],
         memberIds: [currentUser.uid],
         createdAt: DateTime.now(),
         groupType: groupType,
         tags: tags,
+        postingPermissions: postingPermissions,
+        rules: rules,
       );
 
       await _groupsCollection.doc(groupId).set(newGroup.toJson());
     } catch (e) {
-      // It's a good practice to handle errors, e.g., by logging them
-      // or re-throwing a more specific exception.
       print("Error creating group: $e");
       throw Exception("Failed to create group");
+    }
+  }
+
+  Future<String?> _uploadGroupProfileImage(File image, String groupId) async {
+    try {
+      String fileName = 'group_profile_images/$groupId';
+      Reference ref = _storage.ref().child(fileName);
+      UploadTask uploadTask = ref.putFile(image);
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading group profile image: $e");
+      return null;
     }
   }
 
