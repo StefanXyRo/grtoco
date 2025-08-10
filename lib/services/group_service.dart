@@ -207,4 +207,113 @@ class GroupService {
       return [];
     }
   }
+
+  Future<List<Group>> getUserGroups(String userId) async {
+    try {
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        return [];
+      }
+      List<String> groupIds =
+          List<String>.from(userDoc.get('joinedGroupIds') ?? []);
+
+      if (groupIds.isEmpty) {
+        return [];
+      }
+
+      List<Group> groups = [];
+      for (String groupId in groupIds) {
+        DocumentSnapshot groupDoc = await _groupsCollection.doc(groupId).get();
+        if (groupDoc.exists) {
+          groups.add(Group.fromJson(groupDoc.data() as Map<String, dynamic>));
+        }
+      }
+      return groups;
+    } catch (e) {
+      print("Error getting user groups: $e");
+      return [];
+    }
+  }
+
+  Future<List<Group>> getGroupRecommendations() async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        return [];
+      }
+
+      List<Group> userGroups = await getUserGroups(currentUser.uid);
+      Set<String> userTags = userGroups.expand((group) => group.tags).toSet();
+      List<String> userGroupIds = userGroups.map((g) => g.groupId).toList();
+
+      if (userTags.isEmpty) {
+        return [];
+      }
+
+      QuerySnapshot publicGroupsSnapshot =
+          await _groupsCollection.where('groupType', isEqualTo: 'public').get();
+
+      List<Group> allPublicGroups = publicGroupsSnapshot.docs
+          .map((doc) => Group.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+
+      Map<Group, int> scoredGroups = {};
+      for (var group in allPublicGroups) {
+        if (!userGroupIds.contains(group.groupId)) {
+          int commonTags =
+              group.tags.where((tag) => userTags.contains(tag)).length;
+          if (commonTags > 0) {
+            scoredGroups[group] = commonTags;
+          }
+        }
+      }
+
+      var sortedEntries = scoredGroups.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      return sortedEntries.map((entry) => entry.key).toList();
+    } catch (e) {
+      print("Error getting group recommendations: $e");
+      return [];
+    }
+  }
+
+  Future<List<Post>> getPostsForUserGroups() async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        return [];
+      }
+
+      List<Group> userGroups = await getUserGroups(currentUser.uid);
+      List<String> groupIds = userGroups.map((g) => g.groupId).toList();
+
+      if (groupIds.isEmpty) {
+        return [];
+      }
+
+      List<Post> allPosts = [];
+      for (var i = 0; i < groupIds.length; i += 10) {
+        var chunk = groupIds.sublist(
+            i, i + 10 > groupIds.length ? groupIds.length : i + 10);
+        QuerySnapshot postsSnapshot = await _firestore
+            .collection('posts')
+            .where('groupId', whereIn: chunk)
+            .get();
+
+        var posts = postsSnapshot.docs
+            .map((doc) => Post.fromJson(doc.data() as Map<String, dynamic>))
+            .toList();
+        allPosts.addAll(posts);
+      }
+
+      allPosts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      return allPosts;
+    } catch (e) {
+      print("Error getting posts for user groups: $e");
+      return [];
+    }
+  }
 }
