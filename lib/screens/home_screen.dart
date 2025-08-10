@@ -11,12 +11,15 @@ import 'package:grtoco/screens/create_post_screen.dart';
 import 'package:grtoco/screens/profile_screen.dart';
 import 'package:grtoco/screens/reels_screen.dart';
 import 'package:grtoco/services/auth_service.dart';
+import 'package:grtoco/services/cache_service.dart';
 import 'package:grtoco/services/group_service.dart';
 import 'package:grtoco/widgets/event_widget.dart';
 import 'package:grtoco/widgets/poll_widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:grtoco/widgets/qa_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:video_player/video_player.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -150,6 +153,7 @@ class HomeFeed extends StatefulWidget {
 
 class _HomeFeedState extends State<HomeFeed> {
   final GroupService _groupService = GroupService();
+  final CacheService _cacheService = CacheService();
   bool _isLoading = true;
   List<Group> _recommendedGroups = [];
   List<Post> _posts = [];
@@ -272,6 +276,14 @@ class _HomeFeedState extends State<HomeFeed> {
     return ListView.builder(
       itemCount: _posts.length,
       itemBuilder: (context, index) {
+        // Preload content for the next two posts
+        if (index + 1 < _posts.length) {
+          _preloadPostContent(_posts[index + 1]);
+        }
+        if (index + 2 < _posts.length) {
+          _preloadPostContent(_posts[index + 2]);
+        }
+
         final post = _posts[index];
         if (post.postType == PostType.interactive) {
           return FutureBuilder<DocumentSnapshot?>(
@@ -300,15 +312,109 @@ class _HomeFeedState extends State<HomeFeed> {
             },
           );
         } else {
-          return Card(
-            margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: ListTile(
-              title: Text(post.authorId),
-              subtitle: Text(post.textContent ?? 'This is a standard post.'),
-            ),
-          );
+          // This is where you would build your PostWidget
+          return PostCard(post: post, cacheService: _cacheService);
         }
       },
     );
+  }
+
+  void _preloadPostContent(Post post) {
+    if (post.contentUrl != null && post.contentUrl!.isNotEmpty) {
+      if (post.postType == PostType.image) {
+        _cacheService.preloadImage(post.contentUrl!);
+      } else if (post.postType == PostType.video) {
+        _cacheService.preloadVideo(post.contentUrl!);
+      }
+    }
+  }
+}
+
+class PostCard extends StatelessWidget {
+  final Post post;
+  final CacheService cacheService;
+
+  const PostCard({Key? key, required this.post, required this.cacheService}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(post.authorId, style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            if (post.textContent != null) Text(post.textContent!),
+            if (post.postType == PostType.image && post.contentUrl != null)
+              CachedNetworkImage(
+                imageUrl: post.contentUrl!,
+                placeholder: (context, url) => Center(child: CircularProgressIndicator()),
+                errorWidget: (context, url, error) => Icon(Icons.error),
+              ),
+            if (post.postType == PostType.video && post.contentUrl != null)
+              VideoPostWidget(
+                videoUrl: post.contentUrl!,
+                cacheService: cacheService,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class VideoPostWidget extends StatefulWidget {
+  final String videoUrl;
+  final CacheService cacheService;
+
+  const VideoPostWidget({Key? key, required this.videoUrl, required this.cacheService}) : super(key: key);
+
+  @override
+  _VideoPostWidgetState createState() => _VideoPostWidgetState();
+}
+
+class _VideoPostWidgetState extends State<VideoPostWidget> {
+  late VideoPlayerController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeController();
+  }
+
+  Future<void> _initializeController() async {
+    final cachedVideo = await widget.cacheService.getCachedVideo(widget.videoUrl);
+    if (cachedVideo != null) {
+      _controller = VideoPlayerController.file(cachedVideo);
+    } else {
+      _controller = VideoPlayerController.network(widget.videoUrl);
+    }
+
+    await _controller.initialize();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _isLoading
+        ? Center(child: CircularProgressIndicator())
+        : AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: VideoPlayer(_controller),
+          );
   }
 }

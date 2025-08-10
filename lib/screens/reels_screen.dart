@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:grtoco/models/reel.dart';
+import 'package:grtoco/services/cache_service.dart';
 import 'package:grtoco/services/reel_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +13,9 @@ class ReelsScreen extends StatefulWidget {
 
 class _ReelsScreenState extends State<ReelsScreen> {
   final ReelService _reelService = ReelService();
+  final CacheService _cacheService = CacheService();
   final PageController _pageController = PageController();
+  List<Reel> _reels = [];
   int _currentPage = 0;
 
   @override
@@ -21,9 +24,9 @@ class _ReelsScreenState extends State<ReelsScreen> {
     _pageController.addListener(() {
       int newPage = _pageController.page!.round();
       if (_currentPage != newPage) {
-        setState(() {
-          _currentPage = newPage;
-        });
+        _currentPage = newPage;
+        _preloadNextReels(newPage);
+        setState(() {});
       }
     });
   }
@@ -51,17 +54,21 @@ class _ReelsScreenState extends State<ReelsScreen> {
           return Center(child: Text('No reels available.'));
         }
 
-        final reels = snapshot.data!;
+        _reels = snapshot.data!;
+        if (_reels.isNotEmpty) {
+          _preloadNextReels(0);
+        }
         return PageView.builder(
           controller: _pageController,
           scrollDirection: Axis.vertical,
-          itemCount: reels.length,
+          itemCount: _reels.length,
           itemBuilder: (context, index) {
-            final reel = reels[index];
+            final reel = _reels[index];
             return ReelCard(
               reel: reel,
               isActive: index == _currentPage,
               reelService: _reelService,
+              cacheService: _cacheService,
               userId: currentUser?.uid,
             );
           },
@@ -69,12 +76,22 @@ class _ReelsScreenState extends State<ReelsScreen> {
       },
     );
   }
+
+  void _preloadNextReels(int currentIndex) {
+    if (currentIndex + 1 < _reels.length) {
+      _cacheService.preloadVideo(_reels[currentIndex + 1].videoUrl);
+    }
+    if (currentIndex + 2 < _reels.length) {
+      _cacheService.preloadVideo(_reels[currentIndex + 2].videoUrl);
+    }
+  }
 }
 
 class ReelCard extends StatefulWidget {
   final Reel reel;
   final bool isActive;
   final ReelService reelService;
+  final CacheService cacheService;
   final String? userId;
 
   const ReelCard({
@@ -82,6 +99,7 @@ class ReelCard extends StatefulWidget {
     required this.reel,
     required this.isActive,
     required this.reelService,
+    required this.cacheService,
     this.userId,
   }) : super(key: key);
 
@@ -92,19 +110,34 @@ class ReelCard extends StatefulWidget {
 class _ReelCardState extends State<ReelCard> {
   late VideoPlayerController _controller;
   bool _isLiked = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.reel.videoUrl)
-      ..initialize().then((_) {
-        setState(() {});
-        if (widget.isActive) {
-          _controller.play();
-          _controller.setLooping(true);
-        }
-      });
+    _initializeController();
     _isLiked = widget.userId != null && widget.reel.likes.contains(widget.userId);
+  }
+
+  Future<void> _initializeController() async {
+    final cachedVideo = await widget.cacheService.getCachedVideo(widget.reel.videoUrl);
+    if (cachedVideo != null) {
+      _controller = VideoPlayerController.file(cachedVideo);
+    } else {
+      _controller = VideoPlayerController.network(widget.reel.videoUrl);
+    }
+
+    await _controller.initialize();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (widget.isActive) {
+        _controller.play();
+        _controller.setLooping(true);
+      }
+    }
   }
 
   @override
@@ -118,7 +151,11 @@ class _ReelCardState extends State<ReelCard> {
         _controller.pause();
       }
     }
-    if (widget.reel != oldWidget.reel || widget.userId != oldWidget.userId) {
+    if (widget.reel.videoUrl != oldWidget.reel.videoUrl) {
+      _controller.dispose();
+      _initializeController();
+    }
+    if (widget.userId != oldWidget.userId) {
       setState(() {
         _isLiked = widget.userId != null && widget.reel.likes.contains(widget.userId);
       });
@@ -148,15 +185,20 @@ class _ReelCardState extends State<ReelCard> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        _controller.value.isInitialized
-            ? AspectRatio(
-                aspectRatio: _controller.value.aspectRatio,
-                child: VideoPlayer(_controller),
-              )
-            : Container(
+        _isLoading
+            ? Container(
                 color: Colors.black,
                 child: Center(child: CircularProgressIndicator()),
-              ),
+              )
+            : _controller.value.isInitialized
+                ? AspectRatio(
+                    aspectRatio: _controller.value.aspectRatio,
+                    child: VideoPlayer(_controller),
+                  )
+                : Container(
+                    color: Colors.black,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
