@@ -205,3 +205,68 @@ async function sendPushNotification(userId: string, message: string) {
   functions.logger.info(`Sending push notification to ${userId}: ${message}`);
   return Promise.resolve();
 }
+
+export const onPostCreate = functions.firestore
+  .document("posts/{postId}")
+  .onCreate(async (snap, context) => {
+    const post = snap.data();
+    if (!post || !post.textContent) {
+      functions.logger.info("Post has no text content, exiting.");
+      return null;
+    }
+
+    const textContent = post.textContent as string;
+    const updatePayload: { [key: string]: any } = {};
+    const notificationPromises: Promise<any>[] = [];
+
+    // 1. Parse hashtags
+    const hashtagRegex = /#(\w+)/g;
+    const hashtags = textContent.match(hashtagRegex) || [];
+    if (hashtags.length > 0) {
+      updatePayload.hashtags = hashtags;
+      functions.logger.info(`Found hashtags: ${hashtags.join(", ")}`);
+    }
+
+    // 2. Parse mentions
+    const mentionRegex = /@(\w+)/g;
+    const mentions = textContent.match(mentionRegex);
+    if (mentions && mentions.length > 0) {
+      const mentionedUsernames = mentions.map((m) => m.substring(1)); // Remove "@"
+      const mentionedUserIds: string[] = [];
+
+      // Find user IDs from usernames.
+      // This is a simplified approach. A real-world app would need a more
+      // robust user search/mention system.
+      const usersQuery = await db.collection("users")
+        .where("displayName", "in", mentionedUsernames)
+        .get();
+
+      usersQuery.forEach((doc) => {
+        const user = doc.data();
+        mentionedUserIds.push(doc.id);
+
+        // 3. Prepare notifications
+        const notificationMessage =
+          `You were mentioned in a post by ${post.authorId}`;
+        notificationPromises.push(
+          sendPushNotification(doc.id, notificationMessage)
+        );
+      });
+
+      if (mentionedUserIds.length > 0) {
+        updatePayload.mentionedUserIds = mentionedUserIds;
+        functions.logger.info(`Found mentioned user IDs: ${mentionedUserIds.join(", ")}`);
+      }
+    }
+
+    // 4. Update post document if needed
+    if (Object.keys(updatePayload).length > 0) {
+      await snap.ref.update(updatePayload);
+      functions.logger.info(`Updated post ${context.params.postId} with parsed data.`);
+    }
+
+    // 5. Send all notifications
+    await Promise.all(notificationPromises);
+
+    return null;
+  });

@@ -649,4 +649,89 @@ class GroupService {
       return null;
     }
   }
+
+  Future<bool> isUserAdmin(String groupId, String userId) async {
+    try {
+      Group? group = await getGroup(groupId);
+      if (group != null) {
+        return group.adminIds.contains(userId) || group.ownerId == userId;
+      }
+      return false;
+    } catch (e) {
+      print("Error checking admin status: $e");
+      return false;
+    }
+  }
+
+  Future<void> pinPost(String groupId, String postId) async {
+    try {
+      WriteBatch batch = _firestore.batch();
+
+      DocumentReference groupRef = _groupsCollection.doc(groupId);
+      DocumentReference postRef = _firestore.collection('posts').doc(postId);
+
+      // First, unpin any currently pinned post
+      Group? group = await getGroup(groupId);
+      if (group?.pinnedPostId != null) {
+        DocumentReference oldPinnedPostRef = _firestore.collection('posts').doc(group!.pinnedPostId!);
+        batch.update(oldPinnedPostRef, {'isPinned': false});
+      }
+
+      // Then, pin the new post
+      batch.update(postRef, {'isPinned': true});
+      batch.update(groupRef, {'pinnedPostId': postId});
+
+      await batch.commit();
+    } catch (e) {
+      print("Error pinning post: $e");
+      throw Exception("Failed to pin post");
+    }
+  }
+
+  Future<void> unpinPost(String groupId, String postId) async {
+    try {
+      WriteBatch batch = _firestore.batch();
+
+      DocumentReference groupRef = _groupsCollection.doc(groupId);
+      DocumentReference postRef = _firestore.collection('posts').doc(postId);
+
+      batch.update(postRef, {'isPinned': false});
+      batch.update(groupRef, {'pinnedPostId': FieldValue.delete()});
+
+      await batch.commit();
+    } catch (e) {
+      print("Error unpinning post: $e");
+      throw Exception("Failed to unpin post");
+    }
+  }
+
+  Future<void> createPost({
+    required String groupId,
+    required String textContent,
+    // TODO: Add support for image/video uploads
+  }) async {
+    try {
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception("No user logged in");
+      }
+
+      CollectionReference postsCollection = _firestore.collection('posts');
+      String postId = postsCollection.doc().id;
+
+      Post newPost = Post(
+        postId: postId,
+        groupId: groupId,
+        authorId: currentUser.uid,
+        postType: PostType.text, // Default to text post
+        textContent: textContent,
+        timestamp: DateTime.now(),
+      );
+
+      await postsCollection.doc(postId).set(newPost.toJson());
+    } catch (e) {
+      print("Error creating post: $e");
+      throw Exception("Failed to create post");
+    }
+  }
 }

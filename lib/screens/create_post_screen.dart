@@ -255,8 +255,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       switch (_selectedPostType) {
         case CreatePostType.post:
-          // This will be handled by a new method in GroupService
-          // await _groupService.createPost(...);
+          await _groupService.createPost(
+            groupId: _selectedGroup!.groupId,
+            textContent: _textController.text,
+          );
           break;
         case CreatePostType.poll:
           await _groupService.createInteractivePost(

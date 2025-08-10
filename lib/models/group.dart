@@ -21,6 +21,7 @@ class Group {
   final String? videoCallId;
   final String postingPermissions;
   final List<String> rules;
+  final String? pinnedPostId;
 
   Group({
     required this.groupId,
@@ -41,6 +42,7 @@ class Group {
     this.videoCallId,
     this.postingPermissions = 'allMembers',
     this.rules = const [],
+    this.pinnedPostId,
   });
 
   factory Group.fromJson(Map<String, dynamic> json) {
@@ -66,6 +68,7 @@ class Group {
       videoCallId: json['videoCallId'] as String?,
       postingPermissions: json['postingPermissions'] as String? ?? 'allMembers',
       rules: List<String>.from(json['rules'] ?? []),
+      pinnedPostId: json['pinnedPostId'] as String?,
     );
   }
 
@@ -89,6 +92,7 @@ class Group {
       'videoCallId': videoCallId,
       'postingPermissions': postingPermissions,
       'rules': rules,
+      'pinnedPostId': pinnedPostId,
     };
   }
 }

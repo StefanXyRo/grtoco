@@ -14,6 +14,9 @@ class Post {
   final List<String> shares;
   final bool isFlagged;
   final int reportCount;
+  final List<String> mentionedUserIds;
+  final List<String> hashtags;
+  final bool isPinned;
 
   Post({
     required this.postId,
@@ -27,6 +30,9 @@ class Post {
     this.shares = const [],
     this.isFlagged = false,
     this.reportCount = 0,
+    this.mentionedUserIds = const [],
+    this.hashtags = const [],
+    this.isPinned = false,
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
@@ -45,6 +51,9 @@ class Post {
       shares: List<String>.from(json['shares'] ?? []),
       isFlagged: json['isFlagged'] as bool? ?? false,
       reportCount: json['reportCount'] as int? ?? 0,
+      mentionedUserIds: List<String>.from(json['mentionedUserIds'] ?? []),
+      hashtags: List<String>.from(json['hashtags'] ?? []),
+      isPinned: json['isPinned'] as bool? ?? false,
     );
   }
 
@@ -61,6 +70,9 @@ class Post {
       'shares': shares,
       'isFlagged': isFlagged,
       'reportCount': reportCount,
+      'mentionedUserIds': mentionedUserIds,
+      'hashtags': hashtags,
+      'isPinned': isPinned,
     };
   }
 }
