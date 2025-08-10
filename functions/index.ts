@@ -133,3 +133,75 @@ export const deleteDisappearingMessages = functions.pubsub
     functions.logger.info("Finished deleting disappearing messages.");
     return null;
   });
+
+export const sendEventReminders = functions.pubsub
+  .schedule("every 1 hours")
+  .onRun(async (context) => {
+    const now = new Date();
+    const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+    const eventsSnapshot = await db
+      .collection("interactive_posts")
+      .where("postType", "==", "event")
+      .where("eventDate", ">", now)
+      .get();
+
+    if (eventsSnapshot.empty) {
+      functions.logger.info("No upcoming events found.");
+      return null;
+    }
+
+    const notificationPromises: Promise<any>[] = [];
+
+    eventsSnapshot.docs.forEach((doc) => {
+      const event = doc.data();
+      const eventDate = (event.eventDate as admin.firestore.Timestamp).toDate();
+
+      const shouldSend24HourReminder =
+        eventDate > now &&
+        eventDate <= twentyFourHoursFromNow &&
+        !event.sent24HourReminder;
+
+      const shouldSend2HourReminder =
+        eventDate > now &&
+        eventDate <= twoHoursFromNow &&
+        !event.sent2HourReminder;
+
+      if (shouldSend24HourReminder || shouldSend2HourReminder) {
+        const userIds: string[] = [
+          ...(event.rsvpStatus?.going ?? []),
+          ...(event.rsvpStatus?.interested ?? []),
+        ];
+
+        if (userIds.length > 0) {
+          const message = shouldSend24HourReminder
+            ? `Reminder: The event "${event.eventName}" is tomorrow.`
+            : `Reminder: The event "${event.eventName}" starts in 2 hours.`;
+
+          userIds.forEach((userId) => {
+            notificationPromises.push(sendPushNotification(userId, message));
+          });
+        }
+
+        const updatePayload: { [key: string]: boolean } = {};
+        if (shouldSend24HourReminder) {
+          updatePayload.sent24HourReminder = true;
+        }
+        if (shouldSend2HourReminder) {
+          updatePayload.sent2HourReminder = true;
+        }
+        notificationPromises.push(doc.ref.update(updatePayload));
+      }
+    });
+
+    await Promise.all(notificationPromises);
+    functions.logger.info("Finished sending event reminders.");
+    return null;
+  });
+
+async function sendPushNotification(userId: string, message: string) {
+  // TODO: Implement push notification logic
+  functions.logger.info(`Sending push notification to ${userId}: ${message}`);
+  return Promise.resolve();
+}

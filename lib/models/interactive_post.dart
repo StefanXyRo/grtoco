@@ -20,7 +20,8 @@ class InteractivePost {
   final String? eventDescription;
   final DateTime? eventDate;
   final String? eventLocation;
-  final List<String>? attendees;
+  final GeoPoint? eventLocationCoordinates;
+  final Map<String, List<String>>? rsvpStatus;
 
   // Q&A fields
   final List<Map<String, dynamic>>? answers;
@@ -39,7 +40,8 @@ class InteractivePost {
     this.eventDescription,
     this.eventDate,
     this.eventLocation,
-    this.attendees,
+    this.eventLocationCoordinates,
+    this.rsvpStatus,
     this.answers,
   });
 
@@ -64,7 +66,10 @@ class InteractivePost {
           ? (json['eventDate'] as Timestamp).toDate()
           : null,
       eventLocation: json['eventLocation'] as String?,
-      attendees: List<String>.from(json['attendees'] ?? []),
+      eventLocationCoordinates: json['eventLocationCoordinates'] as GeoPoint?,
+      rsvpStatus: (json['rsvpStatus'] as Map<String, dynamic>?)?.map(
+        (key, value) => MapEntry(key, List<String>.from(value)),
+      ),
       answers: (json['answers'] as List<dynamic>?)
           ?.map((answer) => {
                 'authorId': answer['authorId'] as String,
@@ -90,7 +95,8 @@ class InteractivePost {
       'eventDescription': eventDescription,
       'eventDate': eventDate != null ? Timestamp.fromDate(eventDate!) : null,
       'eventLocation': eventLocation,
-      'attendees': attendees,
+      'eventLocationCoordinates': eventLocationCoordinates,
+      'rsvpStatus': rsvpStatus,
       'answers': answers
           ?.map((answer) => {
                 'authorId': answer['authorId'],

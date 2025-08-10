@@ -511,7 +511,7 @@ class GroupService {
           'eventDescription': eventDescription,
           'eventLocation': eventLocation,
           'eventDate': eventDate,
-          'attendees': [],
+          'rsvpStatus': {'going': [], 'interested': [], 'notGoing': []},
         });
       } else if (postType == 'qa') {
         postData.addAll({
@@ -576,19 +576,41 @@ class GroupService {
     }
   }
 
-  Future<void> joinEvent(String postId) async {
+  Future<void> updateRsvpStatus(String postId, String status) async {
     try {
       User? currentUser = _auth.currentUser;
       if (currentUser == null) {
         throw Exception("No user logged in");
       }
 
-      await _firestore.collection('interactive_posts').doc(postId).update({
-        'attendees': FieldValue.arrayUnion([currentUser.uid]),
+      DocumentReference postRef =
+          _firestore.collection('interactive_posts').doc(postId);
+
+      await _firestore.runTransaction((transaction) async {
+        DocumentSnapshot snapshot = await transaction.get(postRef);
+        if (!snapshot.exists) {
+          throw Exception("Post does not exist!");
+        }
+
+        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+        Map<String, List<dynamic>> rsvpStatus =
+            Map<String, List<dynamic>>.from(data['rsvpStatus']);
+
+        // Remove user's ID from all lists
+        rsvpStatus.forEach((key, value) {
+          value.remove(currentUser.uid);
+        });
+
+        // Add user's ID to the new status list
+        if (rsvpStatus.containsKey(status)) {
+          rsvpStatus[status]!.add(currentUser.uid);
+        }
+
+        transaction.update(postRef, {'rsvpStatus': rsvpStatus});
       });
     } catch (e) {
-      print("Error joining event: $e");
-      throw Exception("Failed to join event");
+      print("Error updating RSVP status: $e");
+      throw Exception("Failed to update RSVP status");
     }
   }
 
